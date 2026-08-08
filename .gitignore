@@ -18,3 +18,8 @@ env/
 # 本地临时文件
 *.log
 
+# PyInstaller 打包产物
+build/
+dist/
+*.spec
+

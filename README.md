@@ -49,6 +49,26 @@ python main.py
 | `/sysinfo` | 查看系统信息 |
 | `/help` | 查看所有指令 |
 
+## 📦 打包为可执行程序（PyInstaller）
+
+将桌面应用打包成独立可执行程序，无需 Python 环境即可运行。
+
+```bash
+source .venv/bin/activate
+
+# 安装 PyInstaller
+pip install pyinstaller
+
+# 打包（macOS 下会生成 .app 应用包）
+pyinstaller --noconfirm --clean --windowed --name DesktopAgent main.py
+```
+
+产物位于 `dist/` 目录：
+- `dist/DesktopAgent.app` — macOS 应用包（双击即可运行）
+- `dist/DesktopAgent/` — 目录版可执行文件
+
+> 提示：PyInstaller 打包只能在**当前操作系统**上运行，Windows 需在 Windows 上打包，macOS 需在 macOS 上打包。
+
 ## ⚠️ 安全说明
 
 - `/shell` 会在你的账户权限下执行命令，**请勿输入破坏性命令**。
