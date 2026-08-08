@@ -1,4 +1,5 @@
 """桌面 GUI：聊天窗口。"""
+import threading
 import tkinter as tk
 
 from .core import Agent
@@ -164,7 +165,7 @@ class ChatWindow:
         self.chat_area.configure(state=tk.DISABLED)
         self.chat_area.see(tk.END)
 
-    # ------------------------------------------------------------------
+# ------------------------------------------------------------------
     # 发送逻辑
     # ------------------------------------------------------------------
     def on_send(self) -> None:
@@ -174,7 +175,25 @@ class ChatWindow:
             return
 
         self._append("user", f"你：{text}")
+        # 用特殊 tag 标记占位消息，便于之后精确删除
+        self._append("agent", f"{self.agent.name}：🤔 思考中…", font_tag="pending")
+
+        # 放到线程执行，避免调用大模型时界面卡死
+        threading.Thread(target=self._process, args=(text,), daemon=True).start()
+
+    def _process(self, text: str) -> None:
         reply = self.agent.handle(text)
+        # 线程中不能直接操作 tkinter，需回到主线程更新
+        self.root.after(0, lambda: self._show_reply(reply))
+
+    def _show_reply(self, reply: str) -> None:
+        # 移除"思考中…"占位，替换为真实回复
+        self.chat_area.configure(state=tk.NORMAL)
+        if self.chat_area.tag_ranges("pending"):
+            start = self.chat_area.tag_ranges("pending")[0]
+            self.chat_area.delete(start, "end-1c")
+        self.chat_area.configure(state=tk.DISABLED)
+
         self._append("agent", f"{self.agent.name}：{reply}")
         self._append_line()
         self.entry.focus_set()

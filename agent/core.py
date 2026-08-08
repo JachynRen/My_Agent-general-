@@ -1,12 +1,16 @@
-"""Agent 核心：意图识别与规则式回复。"""
+"""Agent 核心：大模型（Ollama）+ 本机工具调用。"""
 import datetime
+import json
 import re
+import urllib.error
+import urllib.request
 
+from . import config
 from . import tools
 
 
 class Agent:
-    """一个简单的规则式桌面 Agent。"""
+    """一个接入 Ollama 大模型的桌面 Agent。"""
 
     # 工具指令前缀
     TOOL_PREFIX = "/"
@@ -32,19 +36,70 @@ class Agent:
             reply = f"出错了：{e}"
 
         self.history.append({"role": "assistant", "content": reply})
+        # 控制记忆长度，防止对话上下文无限膨胀
+        if len(self.history) > config.HISTORY_LIMIT * 2:
+            self.history = self.history[-config.HISTORY_LIMIT * 2 :]
         return reply
 
     # ------------------------------------------------------------------
     # 分发器
     # ------------------------------------------------------------------
     def _dispatch(self, text: str) -> str:
-        # 工具指令（斜杠开头）
+        # 工具指令（斜杠开头），走本机规则，不请求大模型
         if text.startswith(self.TOOL_PREFIX):
             return self._handle_tool(text)
 
-        # 聊天/规则回复
-        return self._chat(text)
+        # 聊天：尝试调用大模型，失败则回退到规则聊天
+        return self._chat_with_llm(text)
 
+    # ------------------------------------------------------------------
+    # 大模型聊天
+    # ------------------------------------------------------------------
+    def _chat_with_llm(self, text: str) -> str:
+        try:
+            reply = self._query_ollama(text)
+            # 大模型可能返回 / 工具指令，这里提取并执行
+            tool_line = self._extract_tool(reply)
+            if tool_line:
+                result = self._handle_tool(tool_line)
+                return f"{reply.strip()}\n\n{result}"
+            return reply
+        except Exception as e:  # noqa: BLE001
+            print(f"[Ollama 调用失败，回退规则聊天] {e}")
+            return self._chat(text)
+
+    def _query_ollama(self, user_text: str) -> str:
+        """调用 Ollama /api/chat，返回模型回复文本。"""
+        # 构造消息列表：系统 + 最近历史 + 当前输入
+        messages = [{"role": "system", "content": config.SYSTEM_PROMPT}]
+        for msg in self.history[-config.HISTORY_LIMIT:]:
+            messages.append(msg)
+
+        payload = {
+            "model": config.MODEL,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": config.TEMPERATURE,
+                "num_predict": config.MAX_TOKENS,
+            },
+        }
+        req = urllib.request.Request(
+            f"{config.OLLAMA_HOST}/api/chat",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=config.OLLAMA_TIMEOUT) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        content = data.get("message", {}).get("content", "").strip()
+        if not content:
+            raise RuntimeError("模型返回为空")
+        return content
+
+    # ------------------------------------------------------------------
+    # 工具指令处理
+    # ------------------------------------------------------------------
     def _handle_tool(self, text: str) -> str:
         parts = text[1:].split(maxsplit=1)
         cmd = parts[0].lower()
@@ -75,8 +130,15 @@ class Agent:
             raise tools.ToolError(msg)
         return ""
 
+    def _extract_tool(self, reply: str) -> str:
+        """从模型回复中提取 / 指令行（形如 /ls、/cat xxx）。"""
+        match = re.search(r"^\s*(/\S[^\n]*)", reply, re.MULTILINE)
+        if match:
+            return match.group(1).strip()
+        return ""
+
     # ------------------------------------------------------------------
-    # 聊天规则
+    # 规则聊天（作为 Ollama 失败时的兜底）
     # ------------------------------------------------------------------
     def _chat(self, text: str) -> str:
         lowered = text.lower()
@@ -86,7 +148,7 @@ class Agent:
 
         if any(k in lowered for k in ("你是谁", "介绍", "自我")):
             return (
-                f"我是 {self.name}，一个运行在你本机的简单桌面 Agent。\n"
+                f"我是 {self.name}，一个运行在你本机的桌面 Agent。\n"
                 "目前我能：介绍自己、报时间、执行本机命令、管理文件。\n"
                 "输入 /help 查看完整指令列表。"
             )
@@ -105,10 +167,10 @@ class Agent:
             return self._help()
 
         return (
-            "我没太明白你的意思 🤔（当前是演示版，尚未接入大模型）。\n"
-            "你可以试试：\n"
+            f"（Ollama 大模型未启动，当前为规则兜底回复）\n"
+            f"我是 {self.name}，你可以：\n"
             "  · 问时间：'现在几点了'\n"
-            "  · 打个招呼：'你好'\n"
+            "  · 打招呼：'你好'\n"
             "  · 或输入 /help 查看所有工具指令"
         )
 
