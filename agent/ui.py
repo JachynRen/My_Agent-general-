@@ -16,9 +16,9 @@ class ChatWindow:
     BG_AGENT = "#383a40"
     FG_BANNER = "#8a8f98"
     BG_INPUT = "#33353a"
-    BG_BUTTON = "#4a90d9"
+    BG_BUTTON = "#000000"
     FG_BUTTON = "#ffffff"
-    BG_BUTTON_ACTIVE = "#3a7bbf"
+    BG_BUTTON_ACTIVE = "#2a2a2a"
 
     def __init__(self, agent: Agent):
         self.agent = agent
@@ -122,7 +122,7 @@ class ChatWindow:
     def _show_banner(self) -> None:
         banner = (
             f"🤖 {self.agent.name} 已就绪\n"
-            "这是一个演示版桌面 Agent（尚未接入大模型）。\n"
+            "这是一个演示版桌面 Agent。\n"
             "直接聊天，或输入 /help 查看工具指令。"
         )
         self._append("agent", banner, font_tag="banner")
