@@ -110,6 +110,8 @@ class Agent:
             "help": lambda: self._help(),
             "ls": lambda: tools.list_dir(arg or "."),
             "cat": lambda: self._need_arg(arg, "请输入要读取的文件路径") or tools.read_file(arg),
+            "read": lambda: self._need_arg(arg, "请输入要读取的文件路径") or self._read_file(arg),
+            "summarize": lambda: self._need_arg(arg, "请输入要总结的文件路径") or self._summarize_file(arg),
             "open": lambda: tools.open_path(arg or "."),
             "mkdir": lambda: self._need_arg(arg, "请输入要创建的目录路径") or tools.make_dir(arg),
             "shell": lambda: self._need_arg(arg, "请输入要执行的命令") or tools.run_command(arg),
@@ -138,6 +140,42 @@ class Agent:
         if match:
             return match.group(1).strip()
         return ""
+
+    # ------------------------------------------------------------------
+    # 文件读取与总结
+    # ------------------------------------------------------------------
+    def _read_file(self, path: str) -> str:
+        """读取并返回文件内容（智能解析 txt/docx/xlsx/pdf）。"""
+        content = tools.read_file_content(path)
+        # 限制返回长度，避免刷屏
+        if len(content) > 4000:
+            return content[:4000] + f"\n\n…（内容较多，已截断，共 {len(content)} 字符）"
+        return content
+
+    def _summarize_file(self, path: str) -> str:
+        """读取文件内容并调用大模型生成总结。"""
+        content = tools.read_file_content(path)
+
+        # 截断过长的内容，防止超出模型上下文
+        content = content[: config.MAX_FILE_CHARS]
+        prompt = (
+            f"请阅读以下文件内容，并生成一份简洁、结构化的中文总结。\n"
+            f"总结应包含：核心要点、关键信息、如有数据请概述。\n"
+            f"文件内容如下：\n\n{content}\n\n"
+            f"请用中文输出总结。"
+        )
+
+        # 调用大模型生成总结，失败则降级返回文件内容
+        try:
+            summary = self._query_ollama(prompt)
+            return f"📄 文件总结（{path}）：\n\n{summary}"
+        except Exception as e:  # noqa: BLE001
+            print(f"[Ollama 总结失败，降级返回内容] {e}")
+            preview = content[:800]
+            return (
+                f"（Ollama 大模型未启动，无法生成智能总结，已读取文件内容）\n"
+                f"📄 文件：{path}\n\n{preview}"
+            )
 
     # ------------------------------------------------------------------
     # 规则聊天（作为 Ollama 失败时的兜底）
@@ -183,14 +221,18 @@ class Agent:
         return (
             "🤖 可用指令：\n"
             "----------------------\n"
-            "  /help      显示本帮助\n"
+            "  /help        显示本帮助\n"
             "  /ls    [路径]   列出目录内容\n"
-            "  /cat   [文件]   读取文本文件\n"
+            "  /cat   [文件]   读取纯文本文件\n"
+            "  /read  [文件]   读取文件内容（支持 txt/docx/xlsx/pdf）\n"
+            "  /summarize [文件] 读取文件并生成中文总结\n"
             "  /open  [路径]   用默认程序打开\n"
             "  /mkdir [路径]   创建目录\n"
             "  /shell [命令]   执行 shell 命令（10秒超时）\n"
             "  /sysinfo        查看系统信息\n"
             "  /echo  [文本]   原样回显\n"
             "  /version        查看版本信息\n"
+            "----------------------\n"
+            "💡 提示：也可以直接把文件拖进窗口，自动读取/总结。"
         )
 

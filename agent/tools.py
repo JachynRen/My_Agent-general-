@@ -1,6 +1,6 @@
 """Agent 工具集：执行命令、文件操作、系统信息。"""
 import os
-import shutil
+import shutil  # noqa: F401  保留用于未来扩展
 import subprocess
 import time
 import psutil
@@ -119,4 +119,92 @@ def sys_platform_is_mac() -> bool:
 
 def sys_platform_is_win() -> bool:
     return os.name == "nt"
+
+
+# ------------------------------------------------------------------
+# 多格式文件读取（txt / csv / docx / xlsx / pdf）
+# ------------------------------------------------------------------
+SUPPORTED_EXTS = {".txt", ".md", ".log", ".csv", ".docx", ".xlsx", ".pdf"}
+
+
+def read_file_content(path: str, max_bytes: int = 1_000_000) -> str:
+    """按扩展名智能解析文件内容，返回适合传给大模型的文本。
+
+    支持：.txt/.md/.log/.csv（直接文本）、.docx（Word）、.xlsx（Excel）、.pdf。
+    若文件过大或二进制格式无法解析，抛出 ToolError。
+    """
+    if not os.path.isfile(path):
+        raise ToolError(f"文件不存在：{path}")
+
+    ext = os.path.splitext(path)[1].lower()
+    size = os.path.getsize(path)
+    if size > max_bytes:
+        raise ToolError(f"文件过大（{size} 字节），超过上限 {max_bytes} 字节")
+
+    try:
+        if ext in (".txt", ".md", ".log", ".csv"):
+            return _read_plain(path)
+        if ext == ".docx":
+            return _read_docx(path)
+        if ext == ".xlsx":
+            return _read_xlsx(path)
+        if ext == ".pdf":
+            return _read_pdf(path)
+        raise ToolError(
+            f"不支持的文件类型：{ext}。支持：{', '.join(sorted(SUPPORTED_EXTS))}"
+        )
+    except ToolError:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise ToolError(f"解析文件失败：{e}")
+
+
+def _read_plain(path: str) -> str:
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+
+def _read_docx(path: str) -> str:
+    from docx import Document
+
+    doc = Document(path)
+    parts = [p.text for p in doc.paragraphs if p.text.strip()]
+    # 顺便提取表格内容
+    for table in doc.tables:
+        for row in table.rows:
+            cells = [c.text.strip() for c in row.cells]
+            parts.append(" | ".join(cells))
+    content = "\n".join(parts)
+    return content or "(Word 文档无可见文本)"
+
+
+def _read_xlsx(path: str) -> str:
+    from openpyxl import load_workbook
+
+    wb = load_workbook(path, read_only=True, data_only=True)
+    lines = []
+    for ws in wb.worksheets:
+        lines.append(f"[工作表] {ws.title}")
+        for row in ws.iter_rows(values_only=True):
+            vals = [
+                (str(c).strip() if c is not None else "")
+                for c in row
+                if c is not None and str(c).strip()
+            ]
+            if vals:
+                lines.append(" | ".join(vals))
+    wb.close()
+    return "\n".join(lines) if lines else "(Excel 无内容)"
+
+
+def _read_pdf(path: str) -> str:
+    from pypdf import PdfReader
+
+    reader = PdfReader(path)
+    pages = []
+    for page in reader.pages:
+        text = page.extract_text() or ""
+        if text.strip():
+            pages.append(text.strip())
+    return "\n".join(pages) if pages else "(PDF 无可提取文本，可能是扫描件)"
 

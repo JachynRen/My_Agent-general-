@@ -1,9 +1,18 @@
-"""桌面 GUI：聊天窗口。"""
+"""桌面 GUI：聊天窗口（支持鼠标拖拽文件）。"""
+import os
 import threading
 import tkinter as tk
+from tkinter import filedialog
 
 from . import __version__
 from .core import Agent
+
+# 尝试启用原生拖放支持（tkinterdnd2）
+try:
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+    _HAS_DND = True
+except ImportError:
+    _HAS_DND = False
 
 
 class ChatWindow:
@@ -26,13 +35,20 @@ class ChatWindow:
 
     def __init__(self, agent: Agent):
         self.agent = agent
-        self.root = tk.Tk()
+        # 若安装了 tkinterdnd2，用 DnD 根窗口以支持鼠标拖拽文件
+        if _HAS_DND:
+            self.root = TkinterDnD.Tk()
+            self.dnd_enabled = True
+        else:
+            self.root = tk.Tk()
+            self.dnd_enabled = False
         self.root.title(f"桌面 Agent Demo  v{__version__}")
-        self.root.geometry("640x520")
+        self.root.geometry("640x560")
         self.root.minsize(500, 400)
         self.root.configure(bg=self.BG_ROOT)
 
         self._build_widgets()
+        self._setup_dnd()
         self._show_banner()
 
     # ------------------------------------------------------------------
@@ -43,7 +59,7 @@ class ChatWindow:
         frame_chat = tk.Frame(self.root, bg=self.BG_ROOT)
         frame_chat.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 5))
 
-# 聊天文本区 + 自定义暗色滚动条
+        # 聊天文本区 + 自定义暗色滚动条
         chat_container = tk.Frame(frame_chat, bg=self.BG_ROOT)
         chat_container.pack(fill=tk.BOTH, expand=True)
 
@@ -119,7 +135,7 @@ class ChatWindow:
         self.entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=5)
         self.entry.bind("<Return>", lambda e: self.on_send())
 
-# macOS 的原生 Button 会忽略 bg/fg，改用 Label 模拟按钮以完全控制颜色
+        # macOS 的原生 Button 会忽略 bg/fg，改用 Label 模拟按钮以完全控制颜色
         self.send_btn = tk.Label(
             frame_input,
             text="发送",
@@ -141,11 +157,73 @@ class ChatWindow:
             lambda e: self.send_btn.configure(bg=self.BG_BUTTON),
         )
 
+        # 选文件按钮（补充拖拽：点击选择文件自动总结）
+        self.file_btn = tk.Label(
+            frame_input,
+            text="📁 选文件",
+            font=("Helvetica", 12, "bold"),
+            bg=self.BG_BUTTON,
+            fg=self.FG_BUTTON,
+            padx=12,
+            pady=5,
+            cursor="hand2",
+        )
+        self.file_btn.pack(side=tk.RIGHT, padx=(8, 0))
+        self.file_btn.bind("<Button-1>", lambda e: self._choose_file())
+        self.file_btn.bind(
+            "<Enter>",
+            lambda e: self.file_btn.configure(bg=self.BG_BUTTON_ACTIVE),
+        )
+        self.file_btn.bind(
+            "<Leave>",
+            lambda e: self.file_btn.configure(bg=self.BG_BUTTON),
+        )
+
+    def _setup_dnd(self) -> None:
+        """启用鼠标拖拽文件进入窗口。"""
+        if not self.dnd_enabled:
+            return
+        # 让整个窗口接受文件拖放
+        for widget in (self.root, self.chat_area, self.entry):
+            widget.drop_target_register(DND_FILES)
+            widget.dnd_bind("<<Drop>>", self._on_drop)
+
+    def _on_drop(self, event) -> None:
+        """处理拖拽进来的文件。"""
+        data = event.data
+        # tkinterdnd2 会返回带大括号的路径（含空格时）
+        path = data.strip()
+        if path.startswith("{") and path.endswith("}"):
+            path = path[1:-1]
+        if not os.path.isfile(path):
+            self._append("agent", f"❌ 不是有效文件：{path}")
+            return
+        # 自动发送"总结这个文件"指令
+        command = f"/summarize {path}"
+        self.input_var.set(command)
+        self.on_send()
+
+    def _choose_file(self) -> None:
+        """打开文件选择对话框，选择文件后自动总结。"""
+        path = filedialog.askopenfilename(
+            title="选择要总结的文件",
+            filetypes=[
+                ("支持的文件", "*.txt *.md *.log *.csv *.docx *.xlsx *.pdf"),
+                ("所有文件", "*.*"),
+            ],
+        )
+        if not path:
+            return
+        command = f"/summarize {path}"
+        self.input_var.set(command)
+        self.on_send()
+
     def _show_banner(self) -> None:
         banner = (
             f"🤖 {self.agent.name} 已就绪  (v{__version__})\n"
             "这是一个演示版桌面 Agent。\n"
-            "直接聊天，或输入 /help 查看工具指令。"
+            "直接聊天，或输入 /help 查看工具指令。\n"
+            "💡 也可以把 txt/docx/xlsx/pdf 文件拖进窗口，自动生成总结。"
         )
         self._append("agent", banner, font_tag="banner")
         self._append_line()
@@ -166,7 +244,7 @@ class ChatWindow:
         self.chat_area.configure(state=tk.DISABLED)
         self.chat_area.see(tk.END)
 
-# ------------------------------------------------------------------
+    # ------------------------------------------------------------------
     # 发送逻辑
     # ------------------------------------------------------------------
     def on_send(self) -> None:
@@ -202,4 +280,3 @@ class ChatWindow:
     def run(self) -> None:
         self.entry.focus_set()
         self.root.mainloop()
-

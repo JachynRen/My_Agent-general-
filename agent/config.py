@@ -13,6 +13,9 @@ MAX_TOKENS = 512
 # 上下文记忆：传给模型的最近消息条数
 HISTORY_LIMIT = 8
 
+# 传给大模型总结的文件内容最大字符数（防止超出上下文）
+MAX_FILE_CHARS = 12_000
+
 # 调用大模型超时（秒）
 OLLAMA_TIMEOUT = 60
 
