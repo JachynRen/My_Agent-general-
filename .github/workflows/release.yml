@@ -81,9 +81,15 @@ jobs:
             - psutil 系统信息采集
             - PyInstaller 打包为 macOS 应用
 
-            ### 🚀 使用
+### 🚀 使用
             下载 zip 解压后打开对应 `.app` 即可运行。
 
             > **Debug 版** 会保留控制台窗口输出日志，方便排查问题；日常使用请下载 Release 版。
+
+            ### 🔒 关于"无法安全验证"
+            macOS 的 Gatekeeper 会拦截未通过 Apple 公证的应用，提示"无法验证开发者"。这是**正常现象**，请使用以下任一方式打开：
+            - **右键点击 .app → 打开**（推荐）
+            - 终端执行：`xattr -d com.apple.quarantine 路径/DesktopAgent.app`
+            - 系统设置 → 隐私与安全性 → **仍要打开**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

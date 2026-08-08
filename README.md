@@ -72,6 +72,25 @@ pyinstaller --noconfirm --clean --distpath dist-debug --workpath build-debug Des
 
 > 提示：PyInstaller 打包只能在**当前操作系统**上运行，Windows 需在 Windows 上打包，macOS 需在 macOS 上打包。
 
+## 🔒 关于"无法安全验证"的提示
+
+从 **GitHub Release 或网络下载**的 `.app`，macOS 的 **Gatekeeper** 会因应用未通过 Apple 公证（Notarization）而拦截，提示"无法验证开发者/无法安全验证"。这是**正常安全机制**，并非文件损坏。
+
+> 本项目的应用使用 **ad-hoc（本地）签名**，未使用 Apple Developer 付费证书，因此无法通过公证。这只影响从网络下载的场景，**本地直接构件的应用可正常运行**。
+
+### 解除拦截的方法（三选一）
+
+**方法一：右键打开（最推荐）**
+在 Finder 中**右键**点击 `.app` → 选择 **"打开"** → 在弹出的对话框点 **"打开"** 即可。
+
+**方法二：终端解除隔离**
+```bash
+xattr -d com.apple.quarantine /path/to/DesktopAgent.app
+```
+
+**方法三：系统设置信任**
+「系统设置 → 隐私与安全性」底部会显示被拦截的应用，点击 **"仍要打开"** 或"允许"即可。
+
 ## ⚠️ 安全说明
 
 - `/shell` 会在你的账户权限下执行命令，**请勿输入破坏性命令**。
