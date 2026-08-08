@@ -1,6 +1,5 @@
 """桌面 GUI：聊天窗口。"""
 import tkinter as tk
-from tkinter import scrolledtext
 
 from .core import Agent
 
@@ -19,6 +18,9 @@ class ChatWindow:
     BG_BUTTON = "#000000"
     FG_BUTTON = "#ffffff"
     BG_BUTTON_ACTIVE = "#2a2a2a"
+    BG_SCROLLBAR = "#53565c"
+    BG_SCROLLBAR_TROUGH = "#1e1f22"
+    BG_SCROLLBAR_ACTIVE = "#64686f"
 
     def __init__(self, agent: Agent):
         self.agent = agent
@@ -39,8 +41,12 @@ class ChatWindow:
         frame_chat = tk.Frame(self.root, bg=self.BG_ROOT)
         frame_chat.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 5))
 
-        self.chat_area = scrolledtext.ScrolledText(
-            frame_chat,
+# 聊天文本区 + 自定义暗色滚动条
+        chat_container = tk.Frame(frame_chat, bg=self.BG_ROOT)
+        chat_container.pack(fill=tk.BOTH, expand=True)
+
+        self.chat_area = tk.Text(
+            chat_container,
             wrap=tk.WORD,
             state=tk.DISABLED,
             font=("Helvetica", 13),
@@ -50,18 +56,25 @@ class ChatWindow:
             relief=tk.FLAT,
             padx=10,
             pady=10,
+            highlightthickness=0,
+            borderwidth=0,
         )
-        self.chat_area.pack(fill=tk.BOTH, expand=True)
+        self.chat_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # 滚动条配色（macOS 下部分有效）
-        try:
-            self.chat_area.configure(
-                highlightbackground=self.BG_ROOT,
-                highlightcolor=self.BG_ROOT,
-                borderwidth=0,
-            )
-        except tk.TclError:
-            pass
+        # 暗色滚动条
+        self.scrollbar = tk.Scrollbar(
+            chat_container,
+            command=self.chat_area.yview,
+            bg=self.BG_SCROLLBAR,
+            activebackground=self.BG_SCROLLBAR_ACTIVE,
+            troughcolor=self.BG_SCROLLBAR_TROUGH,
+            highlightthickness=0,
+            borderwidth=0,
+            relief=tk.FLAT,
+            width=12,
+        )
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.chat_area.configure(yscrollcommand=self.scrollbar.set)
 
         self.chat_area.tag_configure(
             "user",
@@ -104,20 +117,27 @@ class ChatWindow:
         self.entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=5)
         self.entry.bind("<Return>", lambda e: self.on_send())
 
-        self.send_btn = tk.Button(
+# macOS 的原生 Button 会忽略 bg/fg，改用 Label 模拟按钮以完全控制颜色
+        self.send_btn = tk.Label(
             frame_input,
             text="发送",
-            command=self.on_send,
-            font=("Helvetica", 12),
+            font=("Helvetica", 12, "bold"),
             bg=self.BG_BUTTON,
             fg=self.FG_BUTTON,
-            activebackground=self.BG_BUTTON_ACTIVE,
-            activeforeground=self.FG_BUTTON,
-            relief=tk.FLAT,
             padx=18,
-            highlightthickness=0,
+            pady=5,
+            cursor="hand2",
         )
         self.send_btn.pack(side=tk.RIGHT, padx=(8, 0))
+        self.send_btn.bind("<Button-1>", lambda e: self.on_send())
+        self.send_btn.bind(
+            "<Enter>",
+            lambda e: self.send_btn.configure(bg=self.BG_BUTTON_ACTIVE),
+        )
+        self.send_btn.bind(
+            "<Leave>",
+            lambda e: self.send_btn.configure(bg=self.BG_BUTTON),
+        )
 
     def _show_banner(self) -> None:
         banner = (
