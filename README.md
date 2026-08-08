@@ -51,7 +51,7 @@ python main.py
 
 ## 📦 打包为可执行程序（PyInstaller）
 
-将桌面应用打包成独立可执行程序，无需 Python 环境即可运行。
+将桌面应用打包成独立可执行程序，无需 Python 环境即可运行。支持 **Release 版**和 **Debug 版**两种。
 
 ```bash
 source .venv/bin/activate
@@ -59,13 +59,16 @@ source .venv/bin/activate
 # 安装 PyInstaller
 pip install pyinstaller
 
-# 打包（macOS 下会生成 .app 应用包）
+# 1) 打包 Release 版（隐藏控制台，日常使用）
 pyinstaller --noconfirm --clean --windowed --name DesktopAgent main.py
+
+# 2) 打包 Debug 版（保留控制台日志，便于排查问题）
+pyinstaller --noconfirm --clean --distpath dist-debug --workpath build-debug DesktopAgentDebug.spec
 ```
 
-产物位于 `dist/` 目录：
-- `dist/DesktopAgent.app` — macOS 应用包（双击即可运行）
-- `dist/DesktopAgent/` — 目录版可执行文件
+产物：
+- `dist/DesktopAgent.app` — Release 版 macOS 应用包（双击运行）
+- `dist-debug/DesktopAgentDebug.app` — Debug 版（命令行运行时保留控制台输出）
 
 > 提示：PyInstaller 打包只能在**当前操作系统**上运行，Windows 需在 Windows 上打包，macOS 需在 macOS 上打包。
 

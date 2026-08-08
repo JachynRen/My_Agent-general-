@@ -21,5 +21,8 @@ env/
 # PyInstaller 打包产物
 build/
 dist/
-*.spec
+dist-debug/
+build-debug/
+!/DesktopAgent.spec
+!/DesktopAgentDebug.spec
 

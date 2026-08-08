@@ -30,19 +30,34 @@ jobs:
         id: version
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
-      - name: 用 PyInstaller 打包
+      - name: 用 PyInstaller 打包 release 版本
         run: |
           pyinstaller DesktopAgent.spec --noconfirm
 
-      - name: 压缩打包产物
+      - name: 用 PyInstaller 打包 debug 版本
+        run: |
+          pyinstaller DesktopAgentDebug.spec --noconfirm --distpath dist-debug --workpath build-debug
+
+      - name: 压缩 release 产物
         run: |
           cd dist
           ditto -c -k --keepParent DesktopAgent.app "DesktopAgent-macos-${{ steps.version.outputs.TAG }}.zip"
 
+      - name: 压缩 debug 产物
+        run: |
+          cd dist-debug
+          ditto -c -k --keepParent DesktopAgentDebug.app "DesktopAgentDebug-macos-${{ steps.version.outputs.TAG }}.zip"
+
+      - name: 列出打包产物
+        run: |
+          ls -lh dist/*.zip dist-debug/*.zip
+
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/DesktopAgent-macos-*.zip
+          files: |
+            dist/DesktopAgent-macos-*.zip
+            dist-debug/DesktopAgentDebug-macos-*.zip
           tag_name: ${{ steps.version.outputs.TAG }}
           name: DesktopAgent ${{ steps.version.outputs.TAG }}
           body: |
@@ -55,12 +70,20 @@ jobs:
             - **系统信息**：`/sysinfo`（CPU / 内存 / 磁盘）
             - **辅助指令**：`/echo`、`/help`
 
+            ### 📦 安装包说明
+            | 文件 | 类型 | 说明 |
+            |------|------|------|
+            | `DesktopAgent-macos-*.zip` | Release 版 | 正式版，隐藏控制台 |
+            | `DesktopAgentDebug-macos-*.zip` | Debug 版 | 调试版，保留控制台日志便于排查问题 |
+
             ### 🎨 技术栈
             - Python + tkinter 暗色主题桌面窗口
             - psutil 系统信息采集
             - PyInstaller 打包为 macOS 应用
 
             ### 🚀 使用
-            下载 `DesktopAgent-macos-*.zip`，解压后打开 `DesktopAgent.app` 即可运行。
+            下载 zip 解压后打开对应 `.app` 即可运行。
+
+            > **Debug 版** 会保留控制台窗口输出日志，方便排查问题；日常使用请下载 Release 版。
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
