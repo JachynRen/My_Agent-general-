@@ -5,6 +5,7 @@ import re
 import urllib.error
 import urllib.request
 
+from . import __version__
 from . import config
 from . import tools
 
@@ -115,6 +116,7 @@ class Agent:
             "sysinfo": lambda: tools.get_sysinfo(),
             "clear": lambda: tools.run_command("clear") or "",  # 终端清屏，GUI 中忽略
             "echo": lambda: arg,
+            "version": lambda: f"DesktopAgent v{__version__}",
         }
 
         handler = tool_map.get(cmd)
@@ -189,5 +191,6 @@ class Agent:
             "  /shell [命令]   执行 shell 命令（10秒超时）\n"
             "  /sysinfo        查看系统信息\n"
             "  /echo  [文本]   原样回显\n"
+            "  /version        查看版本信息\n"
         )
 

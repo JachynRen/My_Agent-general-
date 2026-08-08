@@ -13,6 +13,7 @@
 ### 步骤
 - [x] 1. 更新版本号到 v0.3.0（agent/__init__.py）
 - [x] 2. 创建 RELEASE_NOTES_v0.3.0.md
-- [ ] 3. git add + commit 所有改动
-- [ ] 4. 打 tag v0.3.0 并推送触发 CI 发布
-- [ ] 5. 验证 GitHub Actions 与 Release 生成
+- [x] 3. git add + commit 所有改动
+- [x] 4. 打 tag v0.3.0 并推送触发 CI 发布
+- [x] 5. 推送成功（main -> origin/main, v0.3.0 tag）
+- [ ] 6. 确认 GitHub Actions 运行与 Release 生成（需 gh 登录后查看）

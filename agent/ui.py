@@ -2,6 +2,7 @@
 import threading
 import tkinter as tk
 
+from . import __version__
 from .core import Agent
 
 
@@ -26,7 +27,7 @@ class ChatWindow:
     def __init__(self, agent: Agent):
         self.agent = agent
         self.root = tk.Tk()
-        self.root.title("桌面 Agent Demo")
+        self.root.title(f"桌面 Agent Demo  v{__version__}")
         self.root.geometry("640x520")
         self.root.minsize(500, 400)
         self.root.configure(bg=self.BG_ROOT)
@@ -142,7 +143,7 @@ class ChatWindow:
 
     def _show_banner(self) -> None:
         banner = (
-            f"🤖 {self.agent.name} 已就绪\n"
+            f"🤖 {self.agent.name} 已就绪  (v{__version__})\n"
             "这是一个演示版桌面 Agent。\n"
             "直接聊天，或输入 /help 查看工具指令。"
         )
