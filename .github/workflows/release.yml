@@ -1,0 +1,66 @@
+name: 发布 Release
+
+# 在推送 v* tag 时触发，例如 v0.2.0
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 获取版本号
+        id: version
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: 用 PyInstaller 打包
+        run: |
+          pyinstaller DesktopAgent.spec --noconfirm
+
+      - name: 压缩打包产物
+        run: |
+          cd dist
+          ditto -c -k --keepParent DesktopAgent.app "DesktopAgent-macos-${{ steps.version.outputs.TAG }}.zip"
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/DesktopAgent-macos-*.zip
+          tag_name: ${{ steps.version.outputs.TAG }}
+          name: DesktopAgent ${{ steps.version.outputs.TAG }}
+          body: |
+            ## 🎉 Desktop Agent ${{ steps.version.outputs.TAG }}
+
+            ### ✨ 核心功能
+            - **聊天**：规则式回复（问候、自我介绍、报时间等）
+            - **命令执行**：`/shell 命令`（10 秒超时保护）
+            - **文件管理**：`/ls`、`/cat`、`/open`、`/mkdir`
+            - **系统信息**：`/sysinfo`（CPU / 内存 / 磁盘）
+            - **辅助指令**：`/echo`、`/help`
+
+            ### 🎨 技术栈
+            - Python + tkinter 暗色主题桌面窗口
+            - psutil 系统信息采集
+            - PyInstaller 打包为 macOS 应用
+
+            ### 🚀 使用
+            下载 `DesktopAgent-macos-*.zip`，解压后打开 `DesktopAgent.app` 即可运行。
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
