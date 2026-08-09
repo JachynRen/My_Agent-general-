@@ -305,25 +305,41 @@ python main.py
 
 ## 📦 打包说明
 
-使用 **PyInstaller** 打包成独立 macOS App（`DesktopAgent.spec` / `DesktopAgentDebug.spec`）。
+使用 **PyInstaller** 打包成独立可执行程序，支持 **macOS（Apple Silicon）** 与 **Windows** 两种平台。
 
-### 打包步骤
+### macOS（Apple Silicon）打包
 ```bash
-# 安装打包依赖
 pip install pyinstaller
 
-# Release 版（隐藏控制台）
-pyinstaller DesktopAgent.spec
+# Release 版（隐藏控制台，生成 dist/DesktopAgent.app）
+pyinstaller DesktopAgent_mac_arm.spec
 
-# Debug 版（保留控制台查看日志）
-pyinstaller DesktopAgentDebug.spec
+# Debug 版（保留控制台查看日志，生成 dist-debug/DesktopAgentDebug.app）
+pyinstaller DesktopAgent_mac_arm_Debug.spec
+```
+
+### Windows 打包（需在 Windows 上执行）
+```powershell
+# 激活虚拟环境后
+.venv\Scripts\pip install pyinstaller
+
+# 文件夹版（生成 dist\DesktopAgent\DesktopAgent.exe，启动快）
+.venv\Scripts\pyinstaller DesktopAgent_win_onedir.spec
+
+# 单文件版（生成 dist\DesktopAgent.exe，分发方便）
+.venv\Scripts\pyinstaller DesktopAgent_win_onefile.spec
+
+# 调试版（带控制台，生成 dist-debug\DesktopAgentDebug\DesktopAgentDebug.exe）
+.venv\Scripts\pyinstaller --distpath dist-debug DesktopAgent_win_debug.spec
 ```
 
 ### 生产物
-- `dist/DesktopAgent.app` — Release 正式版
-- `dist-debug/DesktopAgentDebug.app` — Debug 调试版
+- **macOS**：`dist/DesktopAgent.app`（Release）、`dist-debug/DesktopAgentDebug.app`（Debug）
+- **Windows**：`dist\DesktopAgent\DesktopAgent.exe`（onedir）、`dist\DesktopAgent.exe`（onefile）、`dist-debug\DesktopAgentDebug\DesktopAgentDebug.exe`（Debug）
 
-> ⚠️ **注意**：打包后的 App 是**完整独立应用**（已内置 Python / tkinter / psutil），但**大模型能力依赖本机 Ollama 服务**——App 只是 Ollama 的 HTTP 客户端，模型与 Ollama 服务不随 App 打包。目标机器需先安装并启动 Ollama、拉取模型。
+> ⚠️ **注意**：打包后的程序是**完整独立应用**（已内置 Python / tkinter / psutil / 文件解析库），但**大模型能力依赖本机 Ollama 服务**——程序只是 Ollama 的 HTTP 客户端，模型与 Ollama 服务不随程序打包。目标机器需先安装并启动 Ollama、拉取模型。
+>
+> Windows 的 onedir / debug 版需将**整个文件夹**一起分发（含 `_internal\` 依赖目录）；onefile 单文件版可直接单独分发。
 
 ### macOS 首次打开提示
 未做 Apple 公证时，Gatekeeper 可能提示"无法验证开发者"。解决方法：
@@ -347,8 +363,11 @@ Agent/
 ├── main.py                  # 程序入口
 ├── requirements.txt         # 依赖（psutil、pyinstaller）
 ├── README.md                # 本文档
-├── DesktopAgent.spec        # Release 打包配置
-├── DesktopAgentDebug.spec   # Debug 打包配置
+├── DesktopAgent_mac_arm.spec        # macOS ARM (Apple Silicon) Release 打包配置
+├── DesktopAgent_mac_arm_Debug.spec  # macOS ARM Debug 打包配置
+├── DesktopAgent_win_onedir.spec     # Windows 文件夹版（onedir）打包配置
+├── DesktopAgent_win_onefile.spec    # Windows 单文件版（onefile）打包配置
+├── DesktopAgent_win_debug.spec      # Windows 调试版（带控制台）打包配置
 └── agent/
     ├── __init__.py          # 包定义（__version__ = "0.3.0"）
     ├── config.py            # 配置中心（Ollama 地址、模型名等）
