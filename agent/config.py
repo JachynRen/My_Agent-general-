@@ -3,8 +3,8 @@
 # Ollama 本地服务地址（默认端口 11434）
 OLLAMA_HOST = "http://localhost:11434"
 
-# 使用的模型（最小编号，体积小、内存要求低）
-MODEL = "qwen2.5:0.5b"
+# 使用的模型（qwen2.5:7b，总结能力强，需约 7-8GB 内存）
+MODEL = "qwen2.5:7b"
 
 # 采样参数
 TEMPERATURE = 0.7

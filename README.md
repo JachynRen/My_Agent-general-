@@ -20,11 +20,11 @@
 
 ## ✨ 功能特性
 
-- 🧠 **智能聊天**：接入本地 Ollama 大模型（默认 `qwen2.5:0.5b`，体积小、内存要求低）
+- 🧠 **智能聊天**：接入本地 Ollama 大模型（默认 `qwen2.5:7b`，总结能力强，需约 7-8GB 内存）
 - 💬 **多轮记忆**：自动携带最近对话上下文（默认 8 条），连续对话更连贯
 - 📄 **读取文件**：支持 txt / docx / xlsx / pdf 多种格式的智能解析
 - 🖱️ **鼠标拖拽文件**：直接把文件拖进窗口，即可读取/总结
-- ⚠️ **生成总结（实验性）**：依赖 Ollama 大模型，默认 `qwen2.5:0.5b` 小模型总结质量有限，**建议换更大的模型**（如 `qwen2.5:7b`）才能获得可用总结
+- ⚠️ **生成总结（实验性）**：依赖 Ollama 大模型，默认 `qwen2.5:7b` 可生成中文总结；若模型过小总结质量有限，建议使用 7b 或更大模型
 - 🔧 **工具调用**：大模型可自主输出 `/` 指令并自动执行本机操作
 - 💻 **执行命令**：`/shell 命令`，10 秒超时保护
 - 📁 **文件操作**：`/ls`、`/cat`、`/open`、`/mkdir`
@@ -143,7 +143,7 @@ def _query_ollama(self, user_text: str) -> str:
 
     # 2. 组装请求体
     payload = {
-        "model": config.MODEL,              # 模型名 qwen2.5:0.5b
+"model": config.MODEL,              # 模型名 qwen2.5:7b
         "messages": messages,               # OpenAI 兼容的对话格式
         "stream": False,                    # 非流式，一次返回
         "options": {                        # 采样参数
@@ -240,14 +240,14 @@ def main() -> None:
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama 服务地址 |
-| `MODEL` | `qwen2.5:0.5b` | 使用的本地模型 |
+| `MODEL` | `qwen2.5:7b` | 使用的本地模型（需约 7-8GB 内存） |
 | `TEMPERATURE` | `0.7` | 采样温度（越高越随机） |
 | `MAX_TOKENS` | `512` | 单次回复最大 token |
 | `HISTORY_LIMIT` | `8` | 传给模型的最近消息条数 |
 | `OLLAMA_TIMEOUT` | `60` | 调用大模型超时（秒） |
 | `SYSTEM_PROMPT` | — | 系统提示词（定义角色 + 引导工具调用） |
 
-> 💡 内存充足（≥8GB）可把 `MODEL` 改为更大的模型（如 `qwen2.5:7b`）换取更好效果。
+> 💡 若内存紧张（<8GB），可把 `MODEL` 改回小模型 `qwen2.5:0.5b`，但总结质量会下降。
 
 ---
 
@@ -261,8 +261,8 @@ brew install ollama
 # 启动 Ollama 服务（首次会自动后台运行）
 ollama serve
 
-# 拉取最小模型（约 0.4GB）
-ollama pull qwen2.5:0.5b
+# 拉取模型（7b，约 4.7GB，适合文件总结）
+ollama pull qwen2.5:7b
 
 # 可选：确认模型就绪
 ollama list
