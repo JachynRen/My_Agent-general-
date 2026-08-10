@@ -1,5 +1,7 @@
 """Agent 工具集：执行命令、文件操作、系统信息。"""
+import getpass
 import os
+import platform
 import shutil  # noqa: F401  保留用于未来扩展
 import subprocess
 import time
@@ -99,22 +101,30 @@ def get_sysinfo() -> str:
         disk = psutil.disk_usage("/")
         boot = psutil.boot_time()
         boot_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(boot))
+        # 使用 platform 模块，跨平台兼容（Windows / macOS / Linux）
+        os_name = platform.system()
+        os_release = platform.release()
+        # 用户名安全获取，避免 os.getlogin() 在 Windows 某些场景抛异常
+        try:
+            user = getpass.getuser()
+        except Exception:
+            user = os.environ.get("USERNAME") or os.environ.get("USER") or "未知"
         return (
             f"💻 系统信息\n"
             f"----------------------\n"
-            f"操作系统: {os.uname().sysname} {os.uname().release}\n"
+            f"操作系统: {os_name} {os_release}\n"
             f"CPU 使用率: {cpu_percent}%\n"
             f"内存: {mem.used / 1e9:.1f}G / {mem.total / 1e9:.1f}G ({mem.percent}%)\n"
             f"磁盘: {disk.used / 1e9:.1f}G / {disk.total / 1e9:.1f}G ({disk.percent}%)\n"
             f"开机时间: {boot_str}\n"
-            f"当前用户: {os.getlogin()}"
+            f"当前用户: {user}"
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return f"获取系统信息失败：{e}"
 
 
 def sys_platform_is_mac() -> bool:
-    return os.name == "posix" and os.uname().sysname == "Darwin"
+    return os.name == "posix" and platform.system() == "Darwin"
 
 
 def sys_platform_is_win() -> bool:

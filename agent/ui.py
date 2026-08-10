@@ -2,7 +2,9 @@
 import os
 import threading
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, Menu, messagebox
+import urllib.request
+import json
 
 from . import __version__
 from .core import Agent
@@ -47,14 +49,114 @@ class ChatWindow:
         self.root.minsize(500, 400)
         self.root.configure(bg=self.BG_ROOT)
 
+        # 模型选择相关
+        self.available_models = []
+        self.current_model = tk.StringVar(value="加载中...")
+
         self._build_widgets()
         self._setup_dnd()
         self._show_banner()
+        # 异步加载模型列表
+        threading.Thread(target=self._load_models, daemon=True).start()
+
+    # ------------------------------------------------------------------
+    # 菜单栏
+    # ------------------------------------------------------------------
+    def _build_menubar(self) -> None:
+        """构建顶部菜单栏。"""
+        menubar = Menu(self.root, bg=self.BG_INPUT, fg=self.FG_TEXT, tearoff=0)
+
+        # 模型菜单
+        model_menu = Menu(menubar, tearoff=0, bg=self.BG_INPUT, fg=self.FG_TEXT)
+        model_menu.add_radiobutton(
+            label="刷新模型列表",
+            command=lambda: threading.Thread(target=self._load_models, daemon=True).start()
+        )
+        model_menu.add_separator()
+        # 动态模型选项会在 _load_models 中添加
+        self.model_menu = model_menu
+
+        menubar.add_cascade(
+            label="🤖 模型",
+            menu=model_menu,
+        )
+
+        # 帮助菜单
+        help_menu = Menu(menubar, tearoff=0, bg=self.BG_INPUT, fg=self.FG_TEXT)
+        help_menu.add_command(label="查看帮助", command=lambda: self._append("agent", self.agent._help()))
+        help_menu.add_command(label="关于", command=self._show_about)
+        menubar.add_cascade(label="❓ 帮助", menu=help_menu)
+
+        self.root.config(menu=menubar)
+
+    def _load_models(self) -> None:
+        """从 Ollama 加载可用模型列表。"""
+        try:
+            req = urllib.request.Request(
+                f"http://localhost:11434/api/tags",
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            models = []
+            for m in data.get("models", []):
+                name = m.get("name", "")
+                if name:
+                    models.append(name)
+
+            if not models:
+                self.root.after(0, lambda: self.current_model.set("无可用模型"))
+                return
+
+            self.available_models = models
+            # 默认选中 config.MODEL 或第一个
+            from . import config
+            default = config.MODEL if config.MODEL in models else models[0]
+
+            self.root.after(0, lambda: self._update_model_menu(models, default))
+        except Exception as e:
+            self.root.after(0, lambda: self.current_model.set("Ollama 未启动"))
+
+    def _update_model_menu(self, models: list[str], default: str) -> None:
+        """更新模型下拉菜单。"""
+        # 清除旧选项（保留前两个：刷新和分隔符）
+        self.model_menu.delete(2, tk.END)
+
+        for model in models:
+            self.model_menu.add_radiobutton(
+                label=model,
+                variable=self.current_model,
+                value=model,
+                command=lambda m=model: self._switch_model(m)
+            )
+
+        self.current_model.set(default)
+
+    def _switch_model(self, model_name: str) -> None:
+        """切换模型并更新配置。"""
+        from . import config
+        config.MODEL = model_name
+        self._append("agent", f"✅ 已切换模型为：{model_name}")
+
+    def _show_about(self) -> None:
+        """显示关于对话框。"""
+        messagebox.showinfo(
+            "关于",
+            f"桌面 Agent Demo\n版本 v{__version__}\n\n"
+            "基于 Python + tkinter + Ollama\n"
+            "支持本地大模型聊天、文件拖拽总结等功能。\n\n"
+            f"作者：JachynRen\n"
+            f"邮箱：784217755@qq.com"
+        )
 
     # ------------------------------------------------------------------
     # 界面构建
     # ------------------------------------------------------------------
     def _build_widgets(self) -> None:
+        # 菜单栏
+        self._build_menubar()
+
         # 聊天记录区
         frame_chat = tk.Frame(self.root, bg=self.BG_ROOT)
         frame_chat.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 5))
